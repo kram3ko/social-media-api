@@ -6,7 +6,7 @@ from rest_framework import serializers
 User = get_user_model()
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         write_only=True,
         label=_("Password"),
@@ -34,8 +34,37 @@ class UserSerializer(serializers.ModelSerializer):
         """Create a new user with encrypted password and return it"""
         return User.objects.create_user(**validated_data)
 
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(
+        write_only=True,
+        label=_("Password"),
+        style={"input_type": "password"},
+        validators=[validate_password],
+    )
+
+    class Meta:
+        model = User
+        fields = ["username", "first_name", "last_name", "password"]
+
     def update(self, instance, validated_data):
         """Update a user, set the password correctly and return it"""
         if password := validated_data.pop("password", None):
             instance.set_password(password)
         return super().update(instance, validated_data)
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["bio", "photo", "birth_date", "city", "website"]
+
+
+class UserDetailSerializer(serializers.ModelSerializer):
+    profile = UserProfileSerializer(
+        read_only=True,
+    )
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "email", "first_name", "last_name", "profile"]
