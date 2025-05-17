@@ -3,6 +3,8 @@ from django.contrib.auth.password_validation import validate_password
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
+from accounts.models import UserProfile
+
 User = get_user_model()
 
 
@@ -55,16 +57,42 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    username = serializers.ReadOnlyField(source="user.username")
+    email = serializers.ReadOnlyField(source="user.email")
+
     class Meta:
-        model = User
+        model = UserProfile
+        fields = [
+            "id",
+            "username",
+            "email",
+            "bio",
+            "photo",
+            "birth_date",
+            "city",
+            "website",
+            "created",
+            "updated",
+        ]
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        if UserProfile.objects.filter(user=user).exists():
+            raise serializers.ValidationError("Profile already exists.")
+        validated_data["user"] = user
+        return super().create(validated_data)
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
         fields = ["bio", "photo", "birth_date", "city", "website"]
+        read_only_fields = ["created", "updated"]
 
 
-class UserDetailSerializer(serializers.ModelSerializer):
-    profile = UserProfileSerializer(
-        read_only=True,
-    )
+class UserSerializer(serializers.ModelSerializer):
+    profile = UserProfileSerializer()
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "profile"]
+        fields = ["username", "email", "first_name", "last_name", "profile"]
