@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework import status
 
 from base.viewsets import ModelViewSet
 from follows.models import Follow
@@ -38,3 +39,8 @@ class FollowsViewSet(ModelViewSet):
         queryset = Follow.objects.filter(followed=request.user)
         serializer = FollowSerializer(queryset, many=True)
         return Response(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)

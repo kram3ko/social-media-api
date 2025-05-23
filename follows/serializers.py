@@ -11,7 +11,7 @@ class FollowSerializer(serializers.ModelSerializer):
     class Meta:
         model = Follow
         fields = ["follower", "followed", "liked_at"]
-        read_only_fields = ["liked_at", "follower"]
+        read_only_fields = ["liked_at", "follower", "followed"]
 
 
 class FollowCreateSerializer(serializers.ModelSerializer):
@@ -20,13 +20,16 @@ class FollowCreateSerializer(serializers.ModelSerializer):
         fields = ["followed"]
 
     def validate(self, attrs):
-        follower = attrs.get("follower")
+        follower = self.context['request'].user
         followed = attrs.get("followed")
-        print(f"Follower: {follower}, Followed: {followed}")
         if follower == followed:
-            raise serializers.ValidationError("You cant follow yourself.")
+            raise serializers.ValidationError({
+                'non_field_errors': ["You cant follow yourself."]
+            })
 
         if Follow.objects.filter(follower=follower, followed=followed).exists():
-            raise serializers.ValidationError("You are already following this user.")
+            raise serializers.ValidationError({
+                'non_field_errors': ["You are already following this user."]
+            })
 
         return attrs

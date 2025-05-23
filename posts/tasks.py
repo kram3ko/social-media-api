@@ -1,17 +1,23 @@
+import logging
+
+import requests
 from celery import shared_task
+from django.db import transaction
 from django.utils import timezone
 
 from posts.models import Post
-import requests
+
+logger = logging.getLogger(__name__)
 
 
 def get_random_joke():
     url = "https://official-joke-api.appspot.com/random_joke"
+    logger.info(f"Fetching random joke from {url}")
     request = requests.get(url)
     if request.status_code == 200:
         joke = request.json()
         return f"{joke['setup']} {joke['punchline']}"
-    return "Didn't get any joke."
+    return None
 
 
 @shared_task
@@ -21,27 +27,22 @@ def publish_schedule_post(post_id):
         post.published = True
         post.published_at = post.schedule_date
         post.save()
-        print(f"Post {post_id} published!")
+        logger.info(f"Post {post_id} published successfully.")
     except Post.DoesNotExist:
-        print(f"Post {post_id} does not exist or already published!")
+        logger.warning(f"Post {post_id} does not exist or is already published.")
     except Exception as e:
-        print(f"Failed to publish post {post_id}: {e}")
+        logger.error(f"Error publishing post {post_id}: {e}")
 
 
 @shared_task
 def make_posts_public():
-    try:
-
-        @shared_task
-        def make_posts_public():
-            try:
-                post = Post.objects.create(
-                    user_id=1,
-                    post=get_random_joke(),
-                    published_at=timezone.now(),
-                )
-                post.save()
-            except Exception as e:
-                print(f"Failed to create post: {e}")
-    except Exception as e:
-        print(f"Failed to create post: {e}")
+    joke = get_random_joke()
+    if joke:
+        with transaction.atomic():
+            post = Post.objects.create(
+                user_id=1,
+                post=joke,
+                published_at=timezone.now(),
+            )
+            post.save()
+            logger.info(f"Post created with ID: {post.id}")
